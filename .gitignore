@@ -1,0 +1,24 @@
+.DS_Store
+Thumbs.db
+__pycache__/
+*.py[cod]
+
+# Local environments
+.venv/
+venv/
+env/
+lab5/
+
+# Local datasets and archives
+ru-fr_interference/
+ru-fr_interference.zip
+
+# Editor / notebook noise
+.ipynb_checkpoints/
+
+# Temporary helper scripts from notebook generation
+build_nb_v2.py
+update_nb.py
+update_nb_fix3.py
+update_nb_real.py
+resume.cls

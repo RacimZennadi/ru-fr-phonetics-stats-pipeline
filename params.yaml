@@ -1,0 +1,5 @@
+corpus_root: ru-fr_interference/ru-fr_interference/2/wav_et_textgrids/FRcorp_textgrids_only
+model_name: facebook/wav2vec2-base
+num_speakers: 6
+target_sr: 16000
+min_word_duration_s: 0.05

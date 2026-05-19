@@ -1,0 +1,141 @@
+schema: '2.0'
+stages:
+  extract_embeddings:
+    cmd: python src/extract_embeddings.py
+    deps:
+    - path: src/extract_embeddings.py
+      hash: md5
+      md5: 01844f4414f2f4b8bd15c686925fe161
+      size: 5067
+    params:
+      params.yaml:
+        corpus_root: ru-fr_interference/ru-fr_interference/2/wav_et_textgrids/FRcorp_textgrids_only
+        model_name: facebook/wav2vec2-base
+        num_speakers: 6
+        target_sr: 16000
+        min_word_duration_s: 0.05
+    outs:
+    - path: outputs/labels.json
+      hash: md5
+      md5: 10fa7c8f3f95f214b3245bb77f1b44e7
+      size: 81889
+    - path: outputs/rep_float64.npy
+      hash: md5
+      md5: 63540fe05d1d4e3b97a7be27806a1a74
+      size: 14192768
+  convert_precision:
+    cmd: python src/convert_precision.py
+    deps:
+    - path: outputs/rep_float64.npy
+      hash: md5
+      md5: 63540fe05d1d4e3b97a7be27806a1a74
+      size: 14192768
+    - path: src/convert_precision.py
+      hash: md5
+      md5: eb3e1c6ecd4cadb69ab89bd291cf28d5
+      size: 705
+    outs:
+    - path: outputs/quant_params.json
+      hash: md5
+      md5: 6b77c9263995bd30db9d56c020e4d460
+      size: 62
+    - path: outputs/rep_float16.npy
+      hash: md5
+      md5: 4550781847d8b7222ffc02682ff8f4cc
+      size: 3548288
+    - path: outputs/rep_float32.npy
+      hash: md5
+      md5: c327c2cf697c8d4f8e0836a14d27cc11
+      size: 7096448
+    - path: outputs/rep_int8.npy
+      hash: md5
+      md5: f5bbca1f4dee00d006c53de1b565acb7
+      size: 1774208
+  compute_distances:
+    cmd: python src/compute_distances.py
+    deps:
+    - path: outputs/labels.json
+      hash: md5
+      md5: 10fa7c8f3f95f214b3245bb77f1b44e7
+      size: 81889
+    - path: outputs/quant_params.json
+      hash: md5
+      md5: 6b77c9263995bd30db9d56c020e4d460
+      size: 62
+    - path: outputs/rep_float16.npy
+      hash: md5
+      md5: 4550781847d8b7222ffc02682ff8f4cc
+      size: 3548288
+    - path: outputs/rep_float32.npy
+      hash: md5
+      md5: c327c2cf697c8d4f8e0836a14d27cc11
+      size: 7096448
+    - path: outputs/rep_float64.npy
+      hash: md5
+      md5: 63540fe05d1d4e3b97a7be27806a1a74
+      size: 14192768
+    - path: outputs/rep_int8.npy
+      hash: md5
+      md5: f5bbca1f4dee00d006c53de1b565acb7
+      size: 1774208
+    - path: src/compute_distances.py
+      hash: md5
+      md5: 5b33a8dc883dd006c9032d834df65426
+      size: 2258
+    outs:
+    - path: outputs/dist_matrices.npz
+      hash: md5
+      md5: d21b6771cfba7d30c63f62034a94702b
+      size: 86393800
+    - path: outputs/results.json
+      hash: md5
+      md5: b27b124d6d966f791e5377ab77cf6144
+      size: 666
+  visualise:
+    cmd: python src/visualise.py
+    deps:
+    - path: outputs/dist_matrices.npz
+      hash: md5
+      md5: d21b6771cfba7d30c63f62034a94702b
+      size: 86393800
+    - path: outputs/labels.json
+      hash: md5
+      md5: 10fa7c8f3f95f214b3245bb77f1b44e7
+      size: 81889
+    - path: outputs/results.json
+      hash: md5
+      md5: b27b124d6d966f791e5377ab77cf6144
+      size: 666
+    - path: src/visualise.py
+      hash: md5
+      md5: fb37728e30d3d2008b0ccedac0ed7053
+      size: 1806
+    outs:
+    - path: figures/distance_distributions.png
+      hash: md5
+      md5: 7c5a8dbac6eaa15b96b49492f4da68cb
+      size: 37584
+    - path: figures/intra_inter_comparison.png
+      hash: md5
+      md5: 3e3ea071633e5a50ba01f206f2203a0d
+      size: 22245
+  analyse:
+    cmd: python src/analyse.py
+    deps:
+    - path: outputs/dist_matrices.npz
+      hash: md5
+      md5: d21b6771cfba7d30c63f62034a94702b
+      size: 86393800
+    - path: outputs/results.json
+      hash: md5
+      md5: b27b124d6d966f791e5377ab77cf6144
+      size: 666
+    - path: src/analyse.py
+      hash: md5
+      md5: 82c399ea462e3daf2ca5ad5e9950e764
+      size: 1310
+    outs:
+    - path: outputs/analysis_summary.txt
+      hash: md5
+      md5: 6cf7006810eb134dad1ff9f1a3145286
+      size: 600

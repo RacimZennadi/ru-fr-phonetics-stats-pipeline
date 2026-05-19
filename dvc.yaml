@@ -1,0 +1,59 @@
+stages:
+  extract_embeddings:
+    cmd: python src/extract_embeddings.py
+    deps:
+      - src/extract_embeddings.py
+    params:
+      - corpus_root
+      - model_name
+      - num_speakers
+      - target_sr
+      - min_word_duration_s
+    outs:
+      - outputs/rep_float64.npy
+      - outputs/labels.json
+
+  convert_precision:
+    cmd: python src/convert_precision.py
+    deps:
+      - src/convert_precision.py
+      - outputs/rep_float64.npy
+    outs:
+      - outputs/rep_float32.npy
+      - outputs/rep_float16.npy
+      - outputs/rep_int8.npy
+      - outputs/quant_params.json
+
+  compute_distances:
+    cmd: python src/compute_distances.py
+    deps:
+      - src/compute_distances.py
+      - outputs/rep_float64.npy
+      - outputs/rep_float32.npy
+      - outputs/rep_float16.npy
+      - outputs/rep_int8.npy
+      - outputs/quant_params.json
+      - outputs/labels.json
+    outs:
+      - outputs/results.json
+      - outputs/dist_matrices.npz
+
+  visualise:
+    cmd: python src/visualise.py
+    deps:
+      - src/visualise.py
+      - outputs/dist_matrices.npz
+      - outputs/labels.json
+      - outputs/results.json
+    outs:
+      - figures/distance_distributions.png
+      - figures/intra_inter_comparison.png
+
+  analyse:
+    cmd: python src/analyse.py
+    deps:
+      - src/analyse.py
+      - outputs/results.json
+      - outputs/dist_matrices.npz
+    outs:
+      - outputs/analysis_summary.txt
