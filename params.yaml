@@ -1,5 +1,255 @@
-corpus_root: ru-fr_interference/ru-fr_interference/2/wav_et_textgrids/FRcorp_textgrids_only
-model_name: facebook/wav2vec2-base
-num_speakers: 6
-target_sr: 16000
-min_word_duration_s: 0.05
+project:
+  name: acoustic-neural-rufr
+  seed: 42
+
+paths:
+  corpus_root: ru-fr_interference/ru-fr_interference/2
+  metadata_csv: ${paths.corpus_root}/metadata_RUFR.csv
+  speaker_root: ${paths.corpus_root}/wav_et_textgrids/FRcorp_textgrids_only
+  processed_dir: data/processed
+  interim_dir: data/interim
+  results_dir: results
+  phoneme_tokens_csv: ${paths.processed_dir}/phoneme_tokens.csv
+  acoustic_csv: ${paths.processed_dir}/features_acoustic.csv
+  acoustic_norm_csv: ${paths.processed_dir}/features_acoustic_norm.csv
+  whisper_npz: ${paths.processed_dir}/features_whisper.npz
+  xlsr_npz: ${paths.processed_dir}/features_xlsr.npz
+  whisper_pca2_npz: ${paths.processed_dir}/features_whisper_pca2.npz
+  whisper_pca50_npz: ${paths.processed_dir}/features_whisper_pca50.npz
+  whisper_pca5_npz: ${paths.processed_dir}/features_whisper_pca5.npz
+  whisper_umap2_npz: ${paths.processed_dir}/features_whisper_umap2.npz
+  xlsr_pca2_npz: ${paths.processed_dir}/features_xlsr_pca2.npz
+  xlsr_pca50_npz: ${paths.processed_dir}/features_xlsr_pca50.npz
+  xlsr_pca5_npz: ${paths.processed_dir}/features_xlsr_pca5.npz
+  xlsr_umap2_npz: ${paths.processed_dir}/features_xlsr_umap2.npz
+  whisper_pca_npz: ${paths.processed_dir}/features_whisper_pca.npz
+  xlsr_pca_npz: ${paths.processed_dir}/features_xlsr_pca.npz
+  embeddings_dir: ${paths.processed_dir}/embeddings
+  figures_dir: ${paths.results_dir}/figures
+  tables_dir: ${paths.results_dir}/tables
+
+parse_corpus:
+  speaker_id_column: spk
+  l1_column: L1
+  gender_column: Gender
+  metadata_separator: ";"
+  transcript_suffix: .txt
+  words_suffix: _words.csv
+  words_separator: ";"
+  textgrid_suffix: .TextGrid
+  phone_tier_names:
+    - phones
+    - phonemes
+    - phone
+  strip_label_prefixes:
+    - "ding... "
+    - "ding.. "
+  strip_label_characters:
+    - "ː"
+    - "ʲ"
+    - "ʰ"
+    - "̥"
+    - "̰"
+    - "̞"
+    - "̝"
+  phoneme_replacements:
+    "u:": "u"
+    "r": "ʁ"
+  silence_labels:
+    - ""
+    - sil
+    - sp
+    - spn
+    - pause
+  filename_pattern: "^(?P<speaker>[a-z0-9]+)_(?P<group>[a-z]+)_list(?P<repetition>\\d+)_FRcorp(?P<sentence_id>\\d+)$"
+
+extract_acoustics:
+  l1_filename_map:
+    fr: fra
+    ru: rus
+  wav_suffix: .wav
+  midpoint_strategy: midpoint
+  long_vowel_threshold_ms: 80.0
+  extra_timepoints:
+    - 0.25
+    - 0.75
+  n_formants: 5
+  max_formant_hz:
+    f: 5000
+    m: 4500
+  include_f3_for_vowels: true
+  extract_f0: true
+  extract_energy: true
+  extract_scg: true
+  f0_floor_hz: 75
+  f0_ceiling_hz:
+    f: 500
+    m: 300
+  vowel_inventory:
+    - i
+    - e
+    - ɛ
+    - a
+    - ɑ
+    - y
+    - ø
+    - œ
+    - ə
+    - u
+    - o
+  consonant_subset:
+    - p
+    - t
+    - k
+    - s
+    - f
+    - m
+  fricative_set:
+    - f
+    - v
+    - s
+    - z
+    - ʃ
+    - ʒ
+    - ʂ
+    - ɕ
+    - x
+    - h
+  missing_value_strategy: report_and_keep_na
+
+extract_neural_whisper:
+  model_name: openai/whisper-medium
+  alternative_model_name: openai/whisper-large-v3
+  layer_sets:
+    lower:
+      - 4
+      - 8
+    upper:
+      - 17
+      - 24
+  pooling: mean_overlapping_frames
+
+extract_neural_xlsr:
+  model_name: facebook/wav2vec2-large-xlsr-53
+  layer_sets:
+    lower:
+      - 3
+      - 6
+    middle:
+      - 9
+      - 12
+    upper:
+      - 18
+      - 24
+  pooling: mean_overlapping_frames
+
+normalise:
+  acoustic_method: lobanov
+  acoustic_formants:
+    - F1
+    - F2
+  vowel_only_for_lobanov: true
+  front_vowels:
+    - i
+    - e
+    - ɛ
+    - y
+    - ø
+    - œ
+  front_vowel_min_f2_hz: 500.0
+  neural_dimensionality:
+    visualisation: 2
+    clustering: 50
+    mixed_effects: 5
+  neural_methods:
+    - pca
+    - umap
+  random_state: 42
+  umap:
+    n_neighbors: 15
+    min_dist: 0.1
+
+analyse:
+  descriptive_vowels_only: true
+  confidence_level: 0.95
+  bh_alpha: 0.05
+  permutation_iterations: 5000
+  bootstrap_iterations:
+    distances: 2000
+    rope: 2000
+  bootstrap_unit: speaker
+  rope:
+    acoustic_hz:
+      - -20.0
+      - 20.0
+    neural_reference: mean_intra_speaker_cosine_distance
+  clustering:
+    linkage: ward
+    acoustic_distance: euclidean
+    neural_distance: cosine
+  speaker_clustering_ground_truth:
+    - l1_status
+    - gender
+
+embed:
+  pca_components:
+    visualisation: 2
+    mixed_effects: 5
+    clustering: 50
+  random_state: 42
+  umap_n_neighbors: 15
+  umap_min_dist: 0.1
+
+descriptive:
+  canonical_vowels:
+    - i
+    - e
+    - ɛ
+    - a
+    - y
+    - ø
+    - œ
+    - u
+    - o
+  representative_layers:
+    whisper: 17
+    xlsr: 12
+  reduction_methods:
+    - pca2
+    - umap2
+  rsm_phonemes:
+    - i
+    - e
+    - ɛ
+    - a
+    - y
+    - ø
+    - œ
+    - u
+    - o
+  rsm_subsample_per_phoneme: 500
+  random_state: 42
+
+bootstrap:
+  n_resamples: 2000
+  permutation_n: 5000
+  mantel_permutations: 999
+  random_state: 42
+
+tests:
+  vowels:
+    - i
+    - e
+    - É›
+    - a
+    - y
+    - Ã¸
+    - u
+    - o
+  representative_layers:
+    whisper: 17
+    xlsr: 12
+  selected_pairs:
+    - [e, É›]
+    - [y, u]
+    - [i, y]

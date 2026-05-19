@@ -1,59 +1,196 @@
 stages:
-  extract_embeddings:
-    cmd: python src/extract_embeddings.py
+  parse_corpus:
+    cmd: python src/parse_corpus.py
     deps:
-      - src/extract_embeddings.py
+      - src/parse_corpus.py
+      - ru-fr_interference/ru-fr_interference/2/metadata_RUFR.csv
+      - ru-fr_interference/ru-fr_interference/2/wav_et_textgrids/FRcorp_textgrids_only
     params:
-      - corpus_root
-      - model_name
-      - num_speakers
-      - target_sr
-      - min_word_duration_s
+      - paths
+      - parse_corpus
     outs:
-      - outputs/rep_float64.npy
-      - outputs/labels.json
+      - data/processed/phoneme_tokens.csv
 
-  convert_precision:
-    cmd: python src/convert_precision.py
+  extract_acoustics:
+    cmd: python src/extract_acoustics.py
     deps:
-      - src/convert_precision.py
-      - outputs/rep_float64.npy
+      - src/extract_acoustics.py
+      - data/processed/phoneme_tokens.csv
+    params:
+      - paths
+      - extract_acoustics
     outs:
-      - outputs/rep_float32.npy
-      - outputs/rep_float16.npy
-      - outputs/rep_int8.npy
-      - outputs/quant_params.json
+      - data/processed/features_acoustic.csv
 
-  compute_distances:
-    cmd: python src/compute_distances.py
+  extract_neural_whisper:
+    cmd: python src/extract_neural_whisper.py
     deps:
-      - src/compute_distances.py
-      - outputs/rep_float64.npy
-      - outputs/rep_float32.npy
-      - outputs/rep_float16.npy
-      - outputs/rep_int8.npy
-      - outputs/quant_params.json
-      - outputs/labels.json
+      - src/extract_neural_whisper.py
+      - data/processed/phoneme_tokens.csv
+    params:
+      - paths
+      - extract_neural_whisper
     outs:
-      - outputs/results.json
-      - outputs/dist_matrices.npz
+      - data/processed/features_whisper.npz
 
-  visualise:
-    cmd: python src/visualise.py
+  extract_neural_xlsr:
+    cmd: python src/extract_neural_xlsr.py
     deps:
-      - src/visualise.py
-      - outputs/dist_matrices.npz
-      - outputs/labels.json
-      - outputs/results.json
+      - src/extract_neural_xlsr.py
+      - data/processed/phoneme_tokens.csv
+    params:
+      - paths
+      - extract_neural_xlsr
     outs:
-      - figures/distance_distributions.png
-      - figures/intra_inter_comparison.png
+      - data/processed/features_xlsr.npz
 
-  analyse:
-    cmd: python src/analyse.py
+  embed:
+    cmd: python src/embed.py
     deps:
-      - src/analyse.py
-      - outputs/results.json
-      - outputs/dist_matrices.npz
+      - src/embed.py
+      - data/processed/features_whisper.npz
+      - data/processed/features_xlsr.npz
+      - data/processed/phoneme_tokens.csv
+      - params.yaml
+    params:
+      - params.yaml
     outs:
-      - outputs/analysis_summary.txt
+      - data/processed/embeddings
+
+  normalise:
+    cmd: python src/normalise.py
+    deps:
+      - src/normalise.py
+      - data/processed/features_acoustic.csv
+      - data/processed/features_whisper.npz
+      - data/processed/features_xlsr.npz
+    params:
+      - paths
+      - normalise
+    outs:
+      - data/processed/features_acoustic_norm.csv
+      - data/processed/features_whisper_pca2.npz
+      - data/processed/features_whisper_pca50.npz
+      - data/processed/features_whisper_pca5.npz
+      - data/processed/features_whisper_umap2.npz
+      - data/processed/features_xlsr_pca2.npz
+      - data/processed/features_xlsr_pca50.npz
+      - data/processed/features_xlsr_pca5.npz
+      - data/processed/features_xlsr_umap2.npz
+
+  analyse_descriptive:
+    cmd: python src/analyse/descriptive.py
+    deps:
+      - src/analyse/descriptive.py
+      - data/processed/features_acoustic_norm.csv
+      - data/processed/phoneme_tokens.csv
+      - data/processed/embeddings
+    params:
+      - paths
+      - descriptive
+      - bootstrap.random_state
+    outs:
+      - results/tables/acoustic_descriptive.csv
+      - results/tables/variance_decomposition.csv
+      - results/tables/between_class_variance.csv
+      - results/tables/cosine_similarity.csv
+      - results/tables/mantel_test.csv
+      - results/figures/vowel_chart.png
+      - results/figures/boxplot_F1_F2.png
+      - results/figures/violin_intra_speaker.png
+      - results/figures/pca_whisper_layer17_phoneme.png
+      - results/figures/pca_whisper_layer17_l1_status.png
+      - results/figures/pca_whisper_layer17_gender.png
+      - results/figures/umap_whisper_layer17_phoneme.png
+      - results/figures/umap_whisper_layer17_l1_status.png
+      - results/figures/umap_whisper_layer17_gender.png
+      - results/figures/pca_xlsr_layer12_phoneme.png
+      - results/figures/pca_xlsr_layer12_l1_status.png
+      - results/figures/pca_xlsr_layer12_gender.png
+      - results/figures/umap_xlsr_layer12_phoneme.png
+      - results/figures/umap_xlsr_layer12_l1_status.png
+      - results/figures/umap_xlsr_layer12_gender.png
+
+  analyse_tests:
+    cmd: python src/analyse/tests.py
+    deps:
+      - src/analyse/tests.py
+      - data/processed/features_acoustic_norm.csv
+      - data/processed/phoneme_tokens.csv
+      - data/processed/features_whisper.npz
+      - data/processed/features_xlsr.npz
+      - data/processed/embeddings
+    params:
+      - paths
+      - tests
+      - analyse.bh_alpha
+      - bootstrap
+    outs:
+      - results/tables/acoustic_group_tests.csv
+      - results/tables/gender_test.csv
+      - results/tables/neural_group_tests.csv
+      - results/tables/acoustic_distance_euclidean.csv
+      - results/tables/acoustic_distance_mahalanobis.csv
+      - results/tables/whisper_distance.csv
+      - results/tables/xlsr_distance.csv
+      - results/tables/centroid_mantel.csv
+      - results/tables/distance_bootstrap_ci.csv
+      - results/tables/classifier_f1.csv
+      - results/tables/mcnemar_test.csv
+      - results/figures/qq_plots.png
+      - results/figures/confusion_acoustic.png
+      - results/figures/confusion_whisper.png
+      - results/figures/confusion_xlsr.png
+
+  analyse_lme:
+    cmd: python src/analyse/lme.py
+    deps:
+      - src/analyse/lme.py
+      - data/processed/features_acoustic_norm.csv
+      - data/processed/phoneme_tokens.csv
+      - data/processed/embeddings
+    params:
+      - paths
+      - tests
+      - bootstrap
+    outs:
+      - results/tables/lme_acoustic_model_comparison.csv
+      - results/tables/lme_acoustic_fixed_effects.csv
+      - results/tables/lme_acoustic_icc.csv
+      - results/tables/lme_neural_model_comparison.csv
+      - results/tables/lme_neural_fixed_effects.csv
+      - results/tables/lme_neural_icc.csv
+      - results/tables/lme_r2.csv
+      - results/tables/lme_acoustic_per_vowel.csv
+      - results/tables/neural_l1l2_bootstrap_ci.csv
+      - results/tables/rope_classification.csv
+      - results/figures/forest_acoustic.png
+      - results/figures/forest_neural.png
+
+  analyse_clustering:
+    cmd: python src/analyse/clustering.py
+    deps:
+      - src/analyse/clustering.py
+      - data/processed/features_acoustic_norm.csv
+      - data/processed/features_acoustic.csv
+      - data/processed/phoneme_tokens.csv
+      - data/processed/embeddings
+    params:
+      - paths
+      - tests.representative_layers
+      - bootstrap.random_state
+    outs:
+      - results/tables/vowel_clustering_ari.csv
+      - results/tables/consonant_vowel_clustering_ari.csv
+      - results/tables/speaker_clustering_ari.csv
+      - results/tables/silhouette_by_k.csv
+      - results/figures/dendrogram_acoustic.png
+      - results/figures/dendrogram_whisper.png
+      - results/figures/dendrogram_xlsr.png
+      - results/figures/dendrogram_cv_acoustic.png
+      - results/figures/dendrogram_cv_whisper.png
+      - results/figures/dendrogram_cv_xlsr.png
+      - results/figures/dendrogram_speakers_acoustic.png
+      - results/figures/dendrogram_speakers_whisper.png
+      - results/figures/dendrogram_speakers_xlsr.png
+      - results/figures/silhouette_by_k.png
